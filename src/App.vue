@@ -1,15 +1,18 @@
 <template>
   <div id="app">
-    <div class="vcViewer">
+    <div class="vcViewer" >
       <vc-viewer
               class="viewer"
+              id="cesiumContainer"
               :animation="animation"
               :timeline="timeline"
               :base-layer-picker="baseLayerPicker"
               :camera.sync="camera"
               :scene-mode-picker="sceneModePicker"
               :navigation-help-button="homeButton"
+              :geocoder="geocoder"
               @ready="ready"
+              :info-box="geocoder"
       >
         <vc-navigation :options="options" />
         <vc-layer-imagery :imagery-provider="imageryProvider" />
@@ -38,7 +41,13 @@
       </el-col>
     </div>
     <div class="linkStatus">
-      <el-table :data="tableData">
+      <el-table border
+                :data="tableData"
+                size="mini"
+                class="tableBox"
+                :row-style="{height:'15px'}"
+                :cell-style="{padding:'0px'}"
+                style="font-size: 10px">
         <el-table-column
                 prop="reqtime"
                 label="时间">
@@ -57,6 +66,9 @@
         </el-table-column>
       </el-table>
     </div>
+    <div id="layerPicker" style="position:absolute;top:45px;right:24px;width:38px;height:38px;">
+
+    </div>
   </div>
 </template>
 
@@ -69,7 +81,7 @@
       return {
         animation: false,
         timeline: false,
-        baseLayerPicker: true,
+        baseLayerPicker: false,
         sceneModePicker: true,
         homeButton: true,
         camera: {
@@ -104,7 +116,8 @@
           enableMyLocation: false,
         },
         tableData: [],
-        input: ''
+        input: '',
+        geocoder: false,
       }
     },
     methods: {
@@ -112,13 +125,16 @@
         const { Cesium, viewer } = cesiumInstance;
         this.cesiumInstance = cesiumInstance;
         const url_sources = 'http://manet.synology.me:4003';
+        console.log(viewer);
         this.imageryProvider = new Cesium.UrlTemplateImageryProvider({
-          url: url_sources + '/maptile/{z}/{x}/{y}.jpg',
+          //url: url_sources + '/maptile/{z}/{x}/{y}.jpg',
+          url:'/satellite/{z}/{x}/{y}.jpg',
           fileExtension: 'jpg'
         });
         this.terrainProvider = new Cesium.CesiumTerrainProvider(
                 {
-                  url: url_sources + '/terrain/'
+                  //url: url_sources + '/terrain/'
+                  url: '/Terrain'
                 }
         );
         let terrainViewModels = [];
@@ -167,8 +183,20 @@
             })
           }
         }));
-        viewer.baseLayerPicker.viewModel.imageryProviderViewModels = imageryViewModels;
-        viewer.baseLayerPicker.viewModel.terrainProviderViewModels = terrainViewModels;
+        //viewer.baseLayerPicker.viewModel.imageryProviderViewModels = imageryViewModels;
+        //viewer.baseLayerPicker.viewModel.terrainProviderViewModels = terrainViewModels;
+        /*
+        let cesiumWidget = new Cesium.CesiumWidget('cesiumContainer', { imageryProvider: false });
+        //Finally, create the baseLayerPicker widget using our view models.
+        let baseLayerPicker = new Cesium.BaseLayerPicker('layerPicker', {
+          globe :viewer.scene.globe,
+          imageryProviderViewModels : imageryViewModels,
+          terrainProviderViewModels:terrainViewModels
+        });
+        console.log(cesiumWidget);
+        console.log(baseLayerPicker);
+
+         */
         let url_scenario = 'http://localhost:8889/JXLoadScenarioParam';
         axios
         .get(url_scenario)
@@ -188,7 +216,7 @@
             for (let j=0;j<targetList.length;j++){
               let targetData = targetList[j];
               let targetId = targetData.targetId;
-              let platformType = targetData.platformType;
+              //let platformType = targetData.platformType;
               //let subplatformType = targetData.subPlatformType===undefined?1:targetData.subPlatformType;
               let healthPoint = targetData.healthPoint;
               let longitude = targetData.longitude;
@@ -197,7 +225,7 @@
               let modelId = targetData.faction===undefined?'B':'R';
               let speed = targetData.speed;
               let teamColor = modelId==='B'?Cesium.Color.BLUE:Cesium.Color.RED;
-              const DegreesHeading = targetData.heading;
+              const Heading = targetData.heading;
               const ellipsoidRadius = 7000;
               const label = targetId + ' (' + longitude + ',' + latitude + ',' + altitude + ')';
               const targetPosition = Cesium.Cartesian3.fromDegrees(
@@ -205,7 +233,7 @@
                       latitude,
                       altitude
               );
-              const Heading = Cesium.Math.toRadians(DegreesHeading);
+              //const Heading = Cesium.Math.toRadians(DegreesHeading);
               let hpr = new Cesium.HeadingPitchRoll(Heading, 0, 0);
               const targetOrientation = Cesium.Transforms.headingPitchRollQuaternion(
                       targetPosition,
@@ -231,7 +259,9 @@
                 }),
                 model: new Cesium.ModelGraphics({
                   //uri: url_sources + '/models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
-                  uri: url_sources + '/models/glb/' + modelId + platformType +  '.glb',
+                  //uri: url_sources + '/models/glb/' + modelId + platformType +  '.glb',
+                  //uri:'/models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
+                  uri: 'models/glb/B1S2.glb',
                   maximumScale: 20000,
                   minimumPixelSize: 64,
                   runAnimations: false,
@@ -261,17 +291,29 @@
                           const latitudeUpdate = targetUpdate.latitude;
                           const altitudeUpdate = targetUpdate.altitude===undefined?0:targetUpdate.altitude;
                           const longitudeUpdate = targetUpdate.longitude;
+                          const Heading = targetUpdate.heading;
                           //const targetInfo = TargetModels[targetId];
                           const entityId = targetUpdate.targetId;
                           TargetModels[entityId].longitude = longitudeUpdate;
                           TargetModels[entityId].latitude = latitudeUpdate;
                           TargetModels[entityId].altitude = altitudeUpdate;
+                          const targetPosition = Cesium.Cartesian3.fromDegrees(
+                                  longitudeUpdate,
+                                  latitudeUpdate,
+                                  altitudeUpdate
+                          );
+                          //const Heading = Cesium.Math.toRadians(DegreesHeading);
+                          let hpr = new Cesium.HeadingPitchRoll(Heading, 0, 0);
+                          const targetOrientation = Cesium.Transforms.headingPitchRollQuaternion(
+                                  targetPosition,
+                                  hpr
+                          );
                           let temp = viewer.entities.getById(entityId);
                           const labelUpdate = targetUpdate.platformTypeName + ' (' + longitudeUpdate + ',' + latitudeUpdate + ',' + altitudeUpdate + ')';
                           temp.label.text = labelUpdate;
                           temp.name = labelUpdate;
-                          temp.position = Cesium.Cartesian3.fromDegrees(longitudeUpdate,latitudeUpdate,altitudeUpdate);
-
+                          temp.position = targetPosition;
+                          temp.orientation = targetOrientation
                         })
                       })
                     })
@@ -416,8 +458,14 @@
     right: 20px;
     top: 30%;
     color: aliceblue;
-    width: 20%;
+    width: 15%;
     height: 60%;
     font-family: "Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","微软雅黑",Arial,sans-serif;
+  }
+  .cell{max-height: 16px !important}
+  .tableBox{
+    td{
+      padding: 0 !important;
+    }
   }
 </style>
