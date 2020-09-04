@@ -1,5 +1,5 @@
 <template>
-  <div id="app">
+  <div id="app" class="app">
     <div class="vcViewer" >
       <vc-viewer
               class="viewer"
@@ -39,6 +39,9 @@
           <option value="CHARTREUSE">棕色</option>
         </select>
       </el-col>
+      <el-checkbox-group v-model="checkboxGroup" size="mini" class="checkbox">
+        <el-checkbox-button v-for="item in subnets" :label="item" :key="item">子网{{item}}</el-checkbox-button>
+      </el-checkbox-group>
     </div>
     <div class="linkStatus">
       <el-table border
@@ -76,6 +79,7 @@
   import axios from 'axios'
   import 'vue-cesium/lib/vc-navigation.css'
   let TargetModels=[];
+  let scenarioTime=0;
   export default {
     data() {
       return {
@@ -83,7 +87,7 @@
         timeline: false,
         baseLayerPicker: false,
         sceneModePicker: true,
-        homeButton: true,
+        homeButton: false,
         camera: {
           position: {
             lng: 130.86,
@@ -118,23 +122,26 @@
         tableData: [],
         input: '',
         geocoder: false,
+        subnets: [],
+        checkboxGroup:[]
       }
     },
     methods: {
       ready(cesiumInstance){
         const { Cesium, viewer } = cesiumInstance;
         this.cesiumInstance = cesiumInstance;
-        const url_sources = 'http://manet.synology.me:4003';
+        const url_sources = '';
+        viewer._cesiumWidget._creditContainer.style.display = "none";
         console.log(viewer);
         this.imageryProvider = new Cesium.UrlTemplateImageryProvider({
-          //url: url_sources + '/maptile/{z}/{x}/{y}.jpg',
-          url:'/satellite/{z}/{x}/{y}.jpg',
+          url: url_sources + '/maptile/{z}/{x}/{y}.jpg',
+          //url:'/satellite/{z}/{x}/{y}.jpg',
           fileExtension: 'jpg'
         });
         this.terrainProvider = new Cesium.CesiumTerrainProvider(
                 {
-                  //url: url_sources + '/terrain/'
-                  url: '/Terrain'
+                  url: url_sources + '/terrain/'
+                  //url: '/Terrain'
                 }
         );
         let terrainViewModels = [];
@@ -203,21 +210,37 @@
         .then((response) => {
           let scenarioDataCluster = response.data.data;
           console.log(scenarioDataCluster);
+          let scenarioStatus = scenarioDataCluster[0] === null;
+          console.log(scenarioStatus);
           for (let i=0;i<scenarioDataCluster.length;i++){
+            if (scenarioStatus) {
+              this.$notify({
+                title: '警告',
+                message: '未接收到想定场景初始化信息，在下次想定更新时会展示现有数据',
+                type: 'warning'
+              });
+              break;
+            }
+              else {
+                scenarioTime = response.data.code;
+              this.$notify({
+                title: '成功',
+                message: '开始加载想定场景信息',
+                type: 'success'
+              });
+            }
             let scenarioData = scenarioDataCluster[i];
-            //load different params
             //let scenarioName = scenarioData.scenarioName;
             //let northwestLongitude = scenarioData.northwestLongitude;
             //let northwestLatitude = scenarioData.northwestLatitude;
             //let southeastLongitude = scenarioData.southeastLongitude;
             //let southeastLatitude = scenarioData.southeastLatitude;
-            //load targets
             let targetList = scenarioData.targetList;
             for (let j=0;j<targetList.length;j++){
               let targetData = targetList[j];
               let targetId = targetData.targetId;
-              //let platformType = targetData.platformType;
-              //let subplatformType = targetData.subPlatformType===undefined?1:targetData.subPlatformType;
+              let platformType = targetData.platformType;
+              let subplatformType = targetData.subPlatformType===undefined?1:targetData.subPlatformType;
               let healthPoint = targetData.healthPoint;
               let longitude = targetData.longitude;
               let latitude = targetData.latitude;
@@ -226,7 +249,7 @@
               let speed = targetData.speed;
               let teamColor = modelId==='B'?Cesium.Color.BLUE:Cesium.Color.RED;
               const Heading = targetData.heading;
-              const ellipsoidRadius = 7000;
+              const ellipsoidRadius = 0;
               const label = targetId + ' (' + longitude + ',' + latitude + ',' + altitude + ')';
               const targetPosition = Cesium.Cartesian3.fromDegrees(
                       longitude,
@@ -246,9 +269,9 @@
                 position: targetPosition,
                 orientation: targetOrientation,
                 label: new Cesium.LabelGraphics({
-                  text: label,
+                  text: '',
                   fillColor: teamColor,
-                  font: '20px sans-serif',
+                  font: '20px',
                   horizontalOrigin: 1,
                   outlineColor: Cesium.Color.BLACK,
                   outlineWidth: 2,
@@ -260,8 +283,8 @@
                 model: new Cesium.ModelGraphics({
                   //uri: url_sources + '/models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
                   //uri: url_sources + '/models/glb/' + modelId + platformType +  '.glb',
-                  //uri:'/models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
-                  uri: 'models/glb/B1S2.glb',
+                  uri:'/models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
+                  //uri: '/models/glb/R1S1.glb',
                   maximumScale: 20000,
                   minimumPixelSize: 64,
                   runAnimations: false,
@@ -291,40 +314,94 @@
                           const latitudeUpdate = targetUpdate.latitude;
                           const altitudeUpdate = targetUpdate.altitude===undefined?0:targetUpdate.altitude;
                           const longitudeUpdate = targetUpdate.longitude;
-                          const Heading = targetUpdate.heading;
+                          let modelId = targetUpdate.faction===undefined?'B':'R';
+                          let speed = targetUpdate.speed;
+                          let teamColor = modelId==='B'?Cesium.Color.BLUE:Cesium.Color.RED;
+                          let platformType = targetUpdate.platformType;
+                          let subplatformType = targetUpdate.subPlatformType===undefined?1:targetUpdate.subPlatformType;
+                          if (subplatformType.toString().length>3||subplatformType===-1) subplatformType =1;
+                          const healthPoint = targetUpdate.healthPoint;
                           //const targetInfo = TargetModels[targetId];
                           const entityId = targetUpdate.targetId;
-                          TargetModels[entityId].longitude = longitudeUpdate;
-                          TargetModels[entityId].latitude = latitudeUpdate;
-                          TargetModels[entityId].altitude = altitudeUpdate;
+                          TargetModels[entityId] = Object.assign({},targetUpdate);
+                          const labelUpdate = targetUpdate.platformTypeName;
+                          const Heading = targetUpdate.heading;
                           const targetPosition = Cesium.Cartesian3.fromDegrees(
                                   longitudeUpdate,
                                   latitudeUpdate,
                                   altitudeUpdate
                           );
-                          //const Heading = Cesium.Math.toRadians(DegreesHeading);
                           let hpr = new Cesium.HeadingPitchRoll(Heading, 0, 0);
                           const targetOrientation = Cesium.Transforms.headingPitchRollQuaternion(
                                   targetPosition,
                                   hpr
                           );
                           let temp = viewer.entities.getById(entityId);
-                          const labelUpdate = targetUpdate.platformTypeName + ' (' + longitudeUpdate + ',' + latitudeUpdate + ',' + altitudeUpdate + ')';
-                          temp.label.text = labelUpdate;
-                          temp.name = labelUpdate;
-                          temp.position = targetPosition;
-                          temp.orientation = targetOrientation
+                          if (temp === undefined) {
+                            viewer.entities.add({
+                              name: labelUpdate,
+                              id: entityId,
+                              position: targetPosition,
+                              orientation: targetOrientation,
+                              label: new Cesium.LabelGraphics({
+                                text: labelUpdate,
+                                fillColor: teamColor,
+                                font: '20px',
+                                horizontalOrigin: 1,
+                                outlineColor: Cesium.Color.BLACK,
+                                outlineWidth: 2,
+                                pixelOffset: new Cesium.Cartesian2(20, -6),
+                                style: Cesium.LabelStyle.FILL,
+                                scaleByDistance: new Cesium.NearFarScalar(1.5e2, 2, 8.0e5, 0.4),
+                                translucencyByDistance: new Cesium.NearFarScalar(1.5e2, 1, 8.0e5, 0.7),
+                              }),
+                              model: new Cesium.ModelGraphics({
+                                //uri: url_sources + '/models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
+                                //uri: url_sources + '/models/glb/' + modelId + platformType +  '.glb',
+                                uri:'/models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
+                                //uri: '/models/glb/R1S1.glb',
+                                maximumScale: 20000,
+                                minimumPixelSize: 64,
+                                runAnimations: false,
+                              }),
+                              ellipsoid: new Cesium.EllipsoidGraphics({
+                                radii: new Cesium.Cartesian3(0, 0, 0),
+                                material: Cesium.Color.RED.withAlpha(0.2),
+                                outline: true,
+                                fill: false,
+                                outlineColor: Cesium.Color.CRIMSON,
+                              }),
+                              healthPoint: healthPoint,
+                              speed: speed
+                            })
+                          }
+                          else{
+                            temp.label.text = labelUpdate;
+                            temp.name = labelUpdate;
+                            temp.position = targetPosition;
+                            temp.orientation = targetOrientation;
+                            temp.model =  new Cesium.ModelGraphics({
+                              uri:'/models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
+                              maximumScale: 20000,
+                              minimumPixelSize: 64,
+                              runAnimations: false,
+                            })
+                          }
                         })
                       })
                     })
-          },1000);
+                    .catch(error=>{
+                      console.log(error);
+                      console.log('Situation error')
+                    })
+          },1500);
           //CommRequest
           setInterval(()=> {
             axios
                     .get(url_request)
                     .then(response => {
-                      for (let i = 0;i<30;i++)
-                        for (let j = 0;j<30;j++)
+                      for (let i = 0;i<100;i++)
+                        for (let j = 0;j<100;j++)
                         {
                           let entityID = i + '-' + j;
                           let tempEntity = viewer.entities.getById(entityID);
@@ -333,6 +410,15 @@
                           }
                         }
                       response.data.data.forEach(respData=>{
+                        const netsubId = respData.netsubId===undefined?0:respData.netsubId;
+                        let subnetColor=[Cesium.Color.CORAL,Cesium.Color.YELLOW,Cesium.Color.ALICEBLUE,Cesium.Color.BLUEVIOLET,Cesium.Color.BROWN,Cesium.Color.DARKTURQUOISE,Cesium.Color.DEEPSKYBLUE,Cesium.Color.FUCHSIA,Cesium.Color.GOLD];
+                        if (!this.subnets.includes(netsubId)) {
+                          this.subnets.push(netsubId);
+                          this.checkboxGroup.push(netsubId);
+                        }
+                        let selectedSubnet = this.checkboxGroup;
+                        let modelShow;
+                        modelShow = selectedSubnet.includes(netsubId);
                         respData.commResultList.forEach(linkData=>{
                           const srcTarget = linkData.sourceTargetId;
                           const dstTarget = linkData.destinationTargetId;
@@ -343,7 +429,7 @@
                           let statusText;
                           let linkColor;
                           if (!status){
-                            linkColor = Cesium.Color.GREEN;
+                            linkColor = subnetColor[netsubId];
                             statusText = '成功';
                           }else {
                             linkColor = Cesium.Color.RED;
@@ -355,7 +441,7 @@
                           //console.log(srcTarget);
                           //console.log(dstTarget);
                           //console.log(TargetModels);
-
+                          if (TargetModels[srcTarget]===undefined||TargetModels[dstTarget]===undefined) return;
                           viewer.entities.add({
                             name: 'link' + linkData.dataNo + reqTime,
                             id: linkEntityId,
@@ -371,7 +457,7 @@
                               label: new Cesium.LabelGraphics({
                                 text: linkDelay,
                                 fillColor: Cesium.Color.GOLD,
-                                font: '20px sans-serif',
+                                font: '20px',
                                 horizontalOrigin: 1,
                                 outlineColor: Cesium.Color.BLACK,
                                 outlineWidth: 2,
@@ -382,8 +468,9 @@
                               }),
                               width: 5,
                               material: new Cesium.PolylineDashMaterialProperty({
-                                color: linkColor
-                              })
+                                color: linkColor,
+                              }),
+                              show: modelShow
                             }
                           });
                           const itemData = {
@@ -396,10 +483,31 @@
                           if (this.tableData.length>10) this.tableData.shift();
 
                         })
-                      })
+                      });
                       console.log('linkupdate')
                     })
-          },1000)
+            .catch(error=>{
+              console.log(error);
+              console.log('linkerror')
+            })
+          },1500);
+          setInterval( ()=> {
+            console.log('scenario Queried');
+            axios
+                    .get(url_scenario)
+                    .then(response=>{
+                      let currentScenarioTime = response.data.code;
+                      console.log('current:'+currentScenarioTime+'logged:'+scenarioTime);
+                      if (currentScenarioTime!==scenarioTime) {
+                        this.$notify({
+                          title: '提示',
+                          message: '想定场景更换，5秒后重新载入当前想定',
+                          type: 'warning'
+                        });
+                        setTimeout(()=>{window.location.reload()},5000);
+                      }
+                    })
+          },3000);
           })
           .finally(function () {
 
@@ -438,6 +546,7 @@
 </script>
 
 <style>
+  body {font-family: sans-serif;}
   .el-col{
     border-radius: 4px;
   }
@@ -450,22 +559,24 @@
     top: 20px;
     left: 20px;
     width: 50%;
-    font-family: "Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","微软雅黑",Arial,sans-serif;
     color: aliceblue;
   }
   .linkStatus{
     position: absolute;
     right: 20px;
-    top: 30%;
+    bottom: 30px;
     color: aliceblue;
     width: 15%;
-    height: 60%;
-    font-family: "Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","微软雅黑",Arial,sans-serif;
+    height: 25%;
   }
   .cell{max-height: 16px !important}
-  .tableBox{
-    td{
+  .tableBox {
+  }
+  td{
       padding: 0 !important;
     }
+  .checkbox{
+    left: 25px;
+    position: relative;
   }
 </style>
