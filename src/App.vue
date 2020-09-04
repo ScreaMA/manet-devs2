@@ -241,13 +241,14 @@
               let targetId = targetData.targetId;
               let platformType = targetData.platformType;
               let subplatformType = targetData.subPlatformType===undefined?1:targetData.subPlatformType;
+              if (subplatformType.toString().length>3||subplatformType===-1) subplatformType =1;
               let healthPoint = targetData.healthPoint;
               let longitude = targetData.longitude;
               let latitude = targetData.latitude;
               let altitude = targetData.altitude===undefined?0:targetData.altitude;
-              let modelId = targetData.faction===undefined?'B':'R';
+              let modelId = targetData.faction===1?'B':'R';
               let speed = targetData.speed;
-              let teamColor = modelId==='B'?Cesium.Color.BLUE:Cesium.Color.RED;
+              let teamColor = modelId==='B'?Cesium.Color.CYAN:Cesium.Color.DEEPPINK;
               const Heading = targetData.heading;
               const ellipsoidRadius = 0;
               const label = targetId + ' (' + longitude + ',' + latitude + ',' + altitude + ')';
@@ -314,9 +315,9 @@
                           const latitudeUpdate = targetUpdate.latitude;
                           const altitudeUpdate = targetUpdate.altitude===undefined?0:targetUpdate.altitude;
                           const longitudeUpdate = targetUpdate.longitude;
-                          let modelId = targetUpdate.faction===undefined?'B':'R';
+                          let modelId = targetUpdate.faction===1?'B':'R';
                           let speed = targetUpdate.speed;
-                          let teamColor = modelId==='B'?Cesium.Color.BLUE:Cesium.Color.RED;
+                          let teamColor = modelId==='B'?Cesium.Color.CYAN:Cesium.Color.DEEPPINK;
                           let platformType = targetUpdate.platformType;
                           let subplatformType = targetUpdate.subPlatformType===undefined?1:targetUpdate.subPlatformType;
                           if (subplatformType.toString().length>3||subplatformType===-1) subplatformType =1;
