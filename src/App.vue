@@ -20,6 +20,7 @@
       </vc-viewer>
     </div>
     <div class="demoTools">
+      <!--
       <el-col :span="3">
         <div>预计通信半径</div>
       </el-col>
@@ -39,8 +40,9 @@
           <option value="CHARTREUSE">棕色</option>
         </select>
       </el-col>
-      <el-col :span="5">
-        <el-checkbox-group v-model="checkboxGroup" size="mini" class="checkbox">
+      -->
+      <el-col :span="7">
+        <el-checkbox-group v-model="checkboxGroup" size="mini" class="checkbox" >
           <el-checkbox-button v-for="item in subnets" :label="item" :key="item">子网{{item}}</el-checkbox-button>
         </el-checkbox-group>
       </el-col>
@@ -50,6 +52,29 @@
       <el-col :span="3" >
         <el-input v-model='refreshInput' size="mini" placeholder="1000" ref="Refresh" @blur="updateRefresh" clearable></el-input>
       </el-col>
+    </div>
+    <div class = "Dialog">
+      <el-dialog title="模拟通信显示参数设置" :visible.sync="dialogFormVisible">
+        <el-form :model="CommPara">
+          <el-form-item label="通信半径" :label-width="formLabelWidth">
+            <el-input v-model="CommPara.radius" autocomplete="off"></el-input>
+          </el-form-item>
+          <el-form-item label="显示颜色" :label-width="formLabelWidth">
+            <el-select v-model="CommPara.color" placeholder="红色">
+              <el-option label="红色" value="RED"></el-option>
+              <el-option label="绿色" value="GREEN"></el-option>
+              <el-option label="金色" value="GOLD"></el-option>
+              <el-option label="粉色" value="HOTPINK"></el-option>
+              <el-option label="蓝色" value="AQUA"></el-option>
+              <el-option label="棕色" value="CHARTREUSE"></el-option>
+            </el-select>
+          </el-form-item>
+        </el-form>
+        <div slot="footer" class="dialog-footer">
+          <el-button @click="dialogFormVisible = false">取 消</el-button>
+          <el-button type="primary" @click="CommPara.clickEvent">确 定</el-button>
+        </div>
+      </el-dialog>
     </div>
     <div class="linkStatus">
       <el-table border
@@ -77,6 +102,7 @@
         </el-table-column>
       </el-table>
     </div>
+    <div id="menu1" class="menu1"> </div>
     <div id="layerPicker" style="position:absolute;top:45px;right:24px;width:38px;height:38px;">
     </div>
   </div>
@@ -85,6 +111,8 @@
 <script>
   import axios from 'axios'
   import 'vue-cesium/lib/vc-navigation.css'
+  import CMenu from "./circular-menu.js"
+
   let TargetModels=[];
   let scenarioTime=0;
   let refreshInterval = 1000;
@@ -137,7 +165,15 @@
         CommResponseTimer: '',
         ScenarioQueryTimer: '',
         BattleSituationHandler: '',
-        CommResponseHandler: ''
+        CommResponseHandler: '',
+        dialogFormVisible: false,
+        CommPara: {
+          radius: '',
+          color: '',
+          clickEvent:'',
+          id:''
+        },
+        formLabelWidth: '120px'
       }
     },
     methods: {
@@ -316,13 +352,92 @@
                         speed: speed
                       })
                     }
-
                   }
+
+
+                });
+        //Config Circular Menu
+        let entityMenu = CMenu("#menu1")
+                .config({
+                  totalAngle:135,
+                  menus: [  {
+                    title: "通信状态设置",
+                    click: ()=> {
+                      this.dialogFormVisible = true;
+                    }
+                  },{
+                    title: "clickMe!",
+                    click: function() {
+                      alert('click event callback');
+                    }
+                  },{
+                    title: "clickMe!",
+                    click: function() {
+                      alert('click event callback');
+                    }
+                  }]
+                });
+        //Cesium 点击事件
+        viewer.screenSpaceEventHandler.setInputAction(event=>{
+          console.log(event);
+          let pickedCartesian = viewer.camera.pickEllipsoid(event.position, viewer.scene.globe.ellipsoid);
+          if (pickedCartesian){
+            let cartographic = viewer.scene.globe.ellipsoid.cartesianToCartographic(pickedCartesian);
+            let log_String = Cesium.Math.toDegrees(cartographic.longitude).toFixed(8);//经度
+            let lat_String = Cesium.Math.toDegrees(cartographic.latitude).toFixed(8);//纬度
+            let alt_String = (viewer.camera.positionCartographic.height/1000).toFixed(2);//视角高
+            let elec_String = viewer.scene.globe.getHeight(cartographic).toFixed(4);//海拔
+            console.log(log_String,lat_String,alt_String,elec_String)
+          }
+          let pickedObject = viewer.scene.pick(event.position);
+          if(pickedObject === undefined){
+            //console.log('undefined');
+            entityMenu.hide();
+          }else{
+            if(pickedObject.tileset !== undefined && pickedObject.tileset.type === "3dtiles"){
+              //console.log('3Dtiles')
+            }else{
+              let entitiyId = pickedObject.id._id;
+              // 判断实体
+              let currentEntity = viewer.entities.getById(entitiyId);
+              if (currentEntity){
+                console.log(currentEntity);
+                this.CommPara.id = entitiyId;
+                entityMenu.show([event.position.x,event.position.y]);
+              }
+            }
+          }
+          console.log('menu showed')
+        },Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+        //表单处理
+        this.CommPara.clickEvent = ()=> {
+          this.dialogFormVisible = false;
+          let entityId = this.CommPara.id;
+          let radius = this.CommPara.radius;
+          let Color = this.CommPara.color;
+          let EntityColor;
+          if (Color === 'RED') EntityColor = Cesium.Color.RED;
+          if (Color === 'GOLD') EntityColor = Cesium.Color.GOLD;
+          if (Color === 'GREEN') EntityColor = Cesium.Color.GREEN;
+          if (Color === 'AQUA') EntityColor = Cesium.Color.AQUA;
+          if (Color === 'CHARTREUSE') EntityColor = Cesium.Color.CHARTREUSE;
+          if (Color === 'HOTPINK') EntityColor = Cesium.Color.HOTPINK;
+          let temp = viewer.entities.getById(entityId);
+          if (temp){
+            temp._ellipsoid.radii = new Cesium.Cartesian3(radius, radius, radius);
+            temp._ellipsoid.outlineColor = EntityColor;
+          }
+        };
+        //禁用右键菜单
+        document.oncontextmenu = function(){
+          event.returnValue = false;
+        };
+
                   const url_situation = 'http://localhost:8889/JXBattleSituation';
                   const url_request = 'http://localhost:8889/JXCommunicationResponse';
 
                   //BattleSituation
-                  function BattleSituation() {
+                  function BattleSituation(viewer) {
                     axios
                             .get(url_situation)
                             .then((response) => {
@@ -413,10 +528,10 @@
                   }
 
                   this.BattleSituationHandler = BattleSituation;
-                  this.BattleSituationTimer = setInterval(() => BattleSituation(), refreshInterval);
+                  this.BattleSituationTimer = setInterval(() => BattleSituation(viewer), refreshInterval);
 
                   //CommRequest
-                  function CommRequest(obj) {
+                  function CommRequest(obj,viewer) {
                     axios
                             .get(url_request)
                             .then(response => {
@@ -512,7 +627,7 @@
                   }
 
                   this.CommResponseHandler = CommRequest;
-                  this.CommResponseTimer = setInterval(() => CommRequest(this), refreshInterval);
+                  this.CommResponseTimer = setInterval(() => CommRequest(this,viewer), refreshInterval);
                   setInterval(() => {
                     console.log('scenario Queried');
                     axios
@@ -531,15 +646,22 @@
                                 }, 5000);
                               }
                             })
-                  }, 5000);
-                })
-                .catch(error => {
-                  console.log(error);
-                  window.location.reload()
-                })
-                .finally(function () {
+                            .catch(error => {
+                              console.log(error);
+                              this.$notify({
+                                title: '错误',
+                                message: '想定查询失败，5秒后重新载入',
+                                type: 'warning'
+                              });
+                              setTimeout(() => {
+                                window.location.reload()
+                              }, 5000);
+                            })
+                            .finally(function () {
 
-                })
+                            });
+                  }, 5000)
+
       }, updateConfigs() {
         const {Cesium, viewer} = this.cesiumInstance;
         const radius = this.$refs.Radius.value;
@@ -570,18 +692,20 @@
         console.log('updateColor');
       },
       updateRefresh() {
-        //const {Cesium, viewer} = this.cesiumInstance;
+        const {Cesium, viewer} = this.cesiumInstance;
         const refreshInterval = this.$refs.Refresh.value;
+        console.log(Cesium.Color.BROWN);
         clearInterval(this.BattleSituationTimer);
         clearInterval(this.CommResponseTimer);
-        setInterval(() => this.BattleSituationHandler(), refreshInterval);
-        setInterval(() => this.CommResponseHandler(this), refreshInterval);
+        this.BattleSituationTimer = setInterval(() => this.BattleSituationHandler(), refreshInterval);
+        this.CommResponseTimer = setInterval(() => this.CommResponseHandler(this,viewer), refreshInterval);
       }
     }
   }
 </script>
 
 <style>
+  @import "circular-menu.css";
   body {font-family: sans-serif;}
   .el-col{
     border-radius: 4px;
@@ -617,4 +741,8 @@
     position: relative;
   }
   */
+  .menu1 {
+    left: 50%;
+    top: 50%;
+  }
 </style>
