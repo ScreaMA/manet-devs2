@@ -184,7 +184,7 @@
         viewer._cesiumWidget._creditContainer.style.display = "none";
         console.log(viewer);
         this.imageryProvider = new Cesium.UrlTemplateImageryProvider({
-          url: url_sources + '/maptile/{z}/{x}/{y}.jpg',
+          url: url_sources + 'maptile/{z}/{x}/{y}.jpg',
           //url:'/satellite/{z}/{x}/{y}.jpg',
           fileExtension: 'jpg'
         });
@@ -213,7 +213,7 @@
           category: '卫星测量',
           creationFunction: function () {
             return new Cesium.CesiumTerrainProvider({
-              url: url_sources + '/terrain/'
+              url: url_sources + 'terrain/'
             })
           }
         }));
@@ -225,7 +225,7 @@
           category: '参考地图（经纬度投影）',
           creationFunction: function () {
             return new Cesium.UrlTemplateImageryProvider({
-              url: url_sources + '/maptile/{z}/{x}/{y}.jpg',
+              url: url_sources + 'maptile/{z}/{x}/{y}.jpg',
               fileExtension: 'jpg'
             })
           }
@@ -237,7 +237,7 @@
           category: '参考地图（经纬度投影）',
           creationFunction: function () {
             return new Cesium.UrlTemplateImageryProvider({
-              url: url_sources + '/nauticaltile/{z}/{x}/{y}.jpg',
+              url: url_sources + 'nauticaltile/{z}/{x}/{y}.jpg',
               fileExtension: 'jpg'
             })
           }
@@ -335,7 +335,7 @@
                         model: new Cesium.ModelGraphics({
                           //uri: url_sources + '/models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
                           //uri: url_sources + '/models/glb/' + modelId + platformType +  '.glb',
-                          uri: '/models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
+                          uri: 'models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
                           //uri: '/models/glb/R1S1.glb',
                           maximumScale: 20000,
                           minimumPixelSize: 64,
@@ -490,7 +490,7 @@
                                       model: new Cesium.ModelGraphics({
                                         //uri: url_sources + '/models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
                                         //uri: url_sources + '/models/glb/' + modelId + platformType +  '.glb',
-                                        uri: '/models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
+                                        uri: 'models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
                                         //uri: '/models/glb/R1S1.glb',
                                         maximumScale: 20000,
                                         minimumPixelSize: 64,
