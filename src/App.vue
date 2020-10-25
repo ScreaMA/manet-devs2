@@ -112,11 +112,11 @@
   import axios from 'axios'
   import 'vue-cesium/lib/vc-navigation.css'
   import CMenu from "./circular-menu.js"
-
   let TargetModels=[];
+  let DistanceModels=[];
   let scenarioTime=0;
   let refreshInterval = 1000;
-  let ellipsoidShow = false;
+  //let ellipsoidShow = false;
   export default {
     data() {
       return {
@@ -259,6 +259,7 @@
         console.log(baseLayerPicker);
 
          */
+        let subnetColor = [Cesium.Color.CORAL, Cesium.Color.YELLOW, Cesium.Color.ALICEBLUE, Cesium.Color.BLUEVIOLET, Cesium.Color.BROWN, Cesium.Color.DARKTURQUOISE, Cesium.Color.DEEPSKYBLUE, Cesium.Color.FUCHSIA, Cesium.Color.GOLD];
         let url_scenario = 'http://localhost:8889/JXLoadScenarioParam';
         axios
                 .get(url_scenario)
@@ -303,6 +304,12 @@
                       let modelId = targetData.faction === 1 ? 'B' : 'R';
                       let speed = targetData.speed;
                       let teamColor = modelId === 'B' ? Cesium.Color.CYAN : Cesium.Color.DEEPPINK;
+                      let ellipsoidColor;
+                      if (DistanceModels[targetId]){
+                        ellipsoidColor = subnetColor[DistanceModels[targetId].subnetId];
+                      }else{
+                        ellipsoidColor = subnetColor[0];
+                      }
                       const Heading = targetData.heading;
                       const ellipsoidRadius = 0;
                       const label = targetId + ' (' + longitude + ',' + latitude + ',' + altitude + ')';
@@ -349,7 +356,8 @@
                           material: Cesium.Color.RED.withAlpha(0.2),
                           outline: true,
                           fill: false,
-                          outlineColor: Cesium.Color.CRIMSON,
+                          outlineColor: ellipsoidColor,
+                          //show: ellipsoidShow
                         }),
                         healthPoint: healthPoint,
                         speed: speed
@@ -359,6 +367,7 @@
 
 
                 });
+        let ellipsoidStatus = false;
         //Config Circular Menu
         let entityMenu = CMenu("#menu1")
                 .config({
@@ -370,15 +379,31 @@
                     }
                   },{
                     title: "通信范围开关",
-                    click: function() {
-                      for(let i =0; i<200 ; i++){
-                        let temp = viewer.entities.getById(i);
-                        if (temp) {
-                          temp._ellipsoid.show =ellipsoidShow;
-                          ellipsoidShow = !ellipsoidShow;
-                          console.log(i+'changed')
+                    click: ()=> {
+                      /*
+                      TargetModels.forEach(targetData => {
+                        const entityId = targetData.targetId;
+                        let temp2 = viewer.entities.getById(entityId);
+                        temp2._ellipsoid.show =true;
+                        ellipsoidStatus =!ellipsoidStatus;
+                      });
+                      */
+                      let id = this.CommPara.id;
+                      let temp = viewer.entities.getById(id);
+                      if (temp) {
+                        ellipsoidStatus = !ellipsoidStatus;
+                        temp._ellipsoid.show = ellipsoidStatus;
+                        if (DistanceModels[id]){
+                          let distance =DistanceModels[id].distance;
+                          let subnetColor = [Cesium.Color.CORAL, Cesium.Color.YELLOW, Cesium.Color.ALICEBLUE, Cesium.Color.BLUEVIOLET, Cesium.Color.BROWN, Cesium.Color.DARKTURQUOISE, Cesium.Color.DEEPSKYBLUE, Cesium.Color.FUCHSIA, Cesium.Color.GOLD];
+                          temp._ellipsoid.radii = new Cesium.Cartesian3(distance, distance, distance);
+                          temp._ellipsoid.outlineColor = subnetColor[DistanceModels[id].subnetId];
+                          console.log('changed');
                         }
+
                       }
+
+
                     }
                   },{
                     title: "clickMe!",
@@ -436,6 +461,8 @@
           if (temp){
             temp._ellipsoid.radii = new Cesium.Cartesian3(radius, radius, radius);
             temp._ellipsoid.outlineColor = EntityColor;
+            temp._ellipsoid.show = true;
+            console.log('true'+temp._ellipsoid.radii);
           }
         };
         //禁用右键菜单
@@ -466,6 +493,12 @@
                                   //const targetInfo = TargetModels[targetId];
                                   const entityId = targetUpdate.targetId;
                                   TargetModels[entityId] = Object.assign({}, targetUpdate);
+                                  let ellipsoidColor;
+                                  if (DistanceModels[entityId]){
+                                    ellipsoidColor = subnetColor[DistanceModels[entityId].subnetId];
+                                  }else{
+                                    ellipsoidColor = subnetColor[0];
+                                  }
                                   const labelUpdate = targetUpdate.platformTypeName;
                                   const Heading = targetUpdate.heading;
                                   const targetPosition = Cesium.Cartesian3.fromDegrees(
@@ -511,7 +544,8 @@
                                         material: Cesium.Color.RED.withAlpha(0.2),
                                         outline: true,
                                         fill: false,
-                                        outlineColor: Cesium.Color.CRIMSON,
+                                        outlineColor: ellipsoidColor,
+                                        //show: ellipsoidShow
                                       }),
                                       healthPoint: healthPoint,
                                       speed: speed
@@ -680,15 +714,29 @@
                       let targetId = distanceData.sourceTargetId;
                       let subnetId = distanceData.subnetId;
                       let distance = distanceData.distance;
-                      let subnetColor = [Cesium.Color.CORAL, Cesium.Color.YELLOW, Cesium.Color.ALICEBLUE, Cesium.Color.BLUEVIOLET, Cesium.Color.BROWN, Cesium.Color.DARKTURQUOISE, Cesium.Color.DEEPSKYBLUE, Cesium.Color.FUCHSIA, Cesium.Color.GOLD];
-                      let temp = viewer.entities.getById(targetId);
-                      temp._ellipsoid.radii = new Cesium.Cartesian3(distance, distance, distance);
-                      temp._ellipsoid.outlineColor = subnetColor[subnetId];
+                      if (DistanceModels[targetId]!==undefined){
+                        if (distance>DistanceModels[targetId].distance){
+                          DistanceModels[targetId] = distanceData;
+                          let subnetColor = [Cesium.Color.CORAL, Cesium.Color.YELLOW, Cesium.Color.ALICEBLUE, Cesium.Color.BLUEVIOLET, Cesium.Color.BROWN, Cesium.Color.DARKTURQUOISE, Cesium.Color.DEEPSKYBLUE, Cesium.Color.FUCHSIA, Cesium.Color.GOLD];
+                          let temp = viewer.entities.getById(targetId);
+                          temp._ellipsoid.radii = new Cesium.Cartesian3(distance, distance, distance);
+                          temp._ellipsoid.outlineColor = subnetColor[subnetId];
+                          temp._ellipsoid.show = true;
+                          //console.log(ellipsoidShow);
+                          //temp._ellipsoid.show =ellipsoidShow;
+                        }
+                      }else {
+                        DistanceModels[targetId] = distanceData;
+                      }
+
                     })
                   })
                   .catch(error => {
                     console.log(error);
                     console.log('DistanceError')
+                  })
+                  .finally(()=>{
+                    console.log(DistanceModels);
                   })
         }
         this.DistanceHandler = DistanceRequest;
