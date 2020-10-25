@@ -116,6 +116,7 @@
   let TargetModels=[];
   let scenarioTime=0;
   let refreshInterval = 1000;
+  let ellipsoidShow = false;
   export default {
     data() {
       return {
@@ -165,6 +166,8 @@
         CommResponseTimer: '',
         ScenarioQueryTimer: '',
         BattleSituationHandler: '',
+        DistanceHandler: '',
+        DistanceTimer: '',
         CommResponseHandler: '',
         dialogFormVisible: false,
         CommPara: {
@@ -366,9 +369,16 @@
                       this.dialogFormVisible = true;
                     }
                   },{
-                    title: "clickMe!",
+                    title: "通信范围开关",
                     click: function() {
-                      alert('click event callback');
+                      for(let i =0; i<200 ; i++){
+                        let temp = viewer.entities.getById(i);
+                        if (temp) {
+                          temp._ellipsoid.show =ellipsoidShow;
+                          ellipsoidShow = !ellipsoidShow;
+                          console.log(i+'changed')
+                        }
+                      }
                     }
                   },{
                     title: "clickMe!",
@@ -512,7 +522,7 @@
                                     temp.position = targetPosition;
                                     temp.orientation = targetOrientation;
                                     temp.model = new Cesium.ModelGraphics({
-                                      uri: '/models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
+                                      uri: 'models/glb/' + modelId + platformType + 'S' + subplatformType + '.glb',
                                       maximumScale: 20000,
                                       minimumPixelSize: 64,
                                       runAnimations: false,
@@ -660,7 +670,29 @@
                             .finally(function () {
 
                             });
-                  }, 5000)
+                  }, 5000);
+        let url_distance = 'http://localhost:8889/JXDistance/';
+        function DistanceRequest(obj,viewer){
+          axios
+                  .get(url_distance)
+                  .then(response => {
+                    response.data.data.forEach(distanceData=>{
+                      let targetId = distanceData.sourceTargetId;
+                      let subnetId = distanceData.subnetId;
+                      let distance = distanceData.distance;
+                      let subnetColor = [Cesium.Color.CORAL, Cesium.Color.YELLOW, Cesium.Color.ALICEBLUE, Cesium.Color.BLUEVIOLET, Cesium.Color.BROWN, Cesium.Color.DARKTURQUOISE, Cesium.Color.DEEPSKYBLUE, Cesium.Color.FUCHSIA, Cesium.Color.GOLD];
+                      let temp = viewer.entities.getById(targetId);
+                      temp._ellipsoid.radii = new Cesium.Cartesian3(distance, distance, distance);
+                      temp._ellipsoid.outlineColor = subnetColor[subnetId];
+                    })
+                  })
+                  .catch(error => {
+                    console.log(error);
+                    console.log('DistanceError')
+                  })
+        }
+        this.DistanceHandler = DistanceRequest;
+        this.DistanceTimer = setInterval(() => DistanceRequest(this,viewer), refreshInterval);
 
       }, updateConfigs() {
         const {Cesium, viewer} = this.cesiumInstance;
@@ -697,8 +729,10 @@
         console.log(Cesium.Color.BROWN);
         clearInterval(this.BattleSituationTimer);
         clearInterval(this.CommResponseTimer);
+        clearInterval(this.DistanceTimer);
         this.BattleSituationTimer = setInterval(() => this.BattleSituationHandler(), refreshInterval);
         this.CommResponseTimer = setInterval(() => this.CommResponseHandler(this,viewer), refreshInterval);
+        this.DistanceTimer = setInterval(() => this.DistanceHandler(this,viewer), refreshInterval);
       }
     }
   }
