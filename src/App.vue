@@ -376,18 +376,12 @@
                     title: "通信状态设置",
                     click: ()=> {
                       this.dialogFormVisible = true;
+                      viewer.entities.removeById('distanceLabel');
                     }
                   },{
                     title: "通信范围开关",
                     click: ()=> {
-                      /*
-                      TargetModels.forEach(targetData => {
-                        const entityId = targetData.targetId;
-                        let temp2 = viewer.entities.getById(entityId);
-                        temp2._ellipsoid.show =true;
-                        ellipsoidStatus =!ellipsoidStatus;
-                      });
-                      */
+                      viewer.entities.removeById('distanceLabel');
                       let id = this.CommPara.id;
                       let temp = viewer.entities.getById(id);
                       if (temp) {
@@ -400,10 +394,7 @@
                           temp._ellipsoid.outlineColor = subnetColor[DistanceModels[id].subnetId];
                           console.log('changed');
                         }
-
                       }
-
-
                     }
                   },{
                     title: "clickMe!",
@@ -428,16 +419,35 @@
           if(pickedObject === undefined){
             //console.log('undefined');
             entityMenu.hide();
+            viewer.entities.removeById('distanceLabel');
           }else{
             if(pickedObject.tileset !== undefined && pickedObject.tileset.type === "3dtiles"){
               //console.log('3Dtiles')
             }else{
-              let entitiyId = pickedObject.id._id;
+              let entityId = pickedObject.id._id;
               // 判断实体
-              let currentEntity = viewer.entities.getById(entitiyId);
+              let currentEntity = viewer.entities.getById(entityId);
               if (currentEntity){
                 console.log(currentEntity);
-                this.CommPara.id = entitiyId;
+                this.CommPara.id = entityId;
+                //Add distance Label
+                viewer.entities.removeById('distanceLabel');
+                let labelDistance;
+                if (DistanceModels[entityId]){
+                  labelDistance = Math.floor(parseInt(DistanceModels[entityId].distance)/1000);
+                  let entityPosition = currentEntity._position._value;
+                  viewer.entities.add({
+                    id: 'distanceLabel',
+                    label: {
+                      text:'通信范围:'+labelDistance+'km',
+                      pixelOffset: new Cesium.Cartesian2(0, 35),
+                      color: Cesium.Color.CORAL,
+                      font: '20px sans-serif'
+                    },
+                    position: entityPosition
+                  })
+                }
+                console.log('entity added')
                 entityMenu.show([event.position.x,event.position.y]);
               }
             }
@@ -736,7 +746,7 @@
                     console.log('DistanceError')
                   })
                   .finally(()=>{
-                    console.log(DistanceModels);
+                    //console.log(DistanceModels);
                   })
         }
         this.DistanceHandler = DistanceRequest;
